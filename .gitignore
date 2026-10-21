@@ -1,0 +1,7 @@
+build/
+cmake-build-*/
+*.exe
+*.obj
+*.o
+music
+learn.txt
