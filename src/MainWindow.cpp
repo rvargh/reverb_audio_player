@@ -1,3 +1,4 @@
+
 #include "MainWindow.hpp"
 #include  "AudioPlayer.hpp"
 
@@ -19,8 +20,13 @@ void MainWindow::load_window() {
     QLabel* volume_label = new QLabel("Volume : ");
 
     QSlider* progress = new QSlider(Qt::Horizontal);
-    progress->setRange(0, 100);
+    progress->setRange(0, m_audio_player->duration_seconds());
     progress->setValue(0);
+    QObject::connect(progress, &QSlider::sliderReleased, [this, progress]() {
+        int targetSecond = progress->value();
+        // Call your audio engine's seek function
+        // m_audio_player->seek_to_second(targetSecond);
+    });
 
     QSlider* volume = new QSlider(Qt::Horizontal);
     volume->setRange(0, 100);
@@ -40,6 +46,7 @@ void MainWindow::load_window() {
     QObject::connect(play, &QPushButton::clicked, [this,play]() {
         if (m_audio_player->is_playing()) {
             m_audio_player->pause();
+            std::println("I am pausing the audio");
             play->setText("▶"); // Show the play symbol so they can resume
         } else {
             m_audio_player->play();
