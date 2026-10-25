@@ -124,8 +124,6 @@ void AudioPlayer::init_system_audio() {
     formatToUse = (hr == S_FALSE && ppClosestMatch != nullptr)
                       ? ppClosestMatch
                       : &pFormat;
-    // formatToUse->nSamplesPerSec = 44100;
-
     hr = pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, 0,
                                   hnsRequestedDuration, 0, formatToUse, nullptr
     );
@@ -173,16 +171,10 @@ void AudioPlayer::play_audio() {
     UINT64 pu64Frequency = 0;
 
     hr = pAudioClock->GetPosition(&pu64Position, &pu64QPCPosition);
-    std::cout << "pu64Position : " << pu64Position << std::endl;
-    std::cout << "pu64Position : " << pu64QPCPosition << std::endl;
-    AudioPlayer::duration_seconds();
-
-    std::cout << "Hey I am from Audio Player clicked play." << std::endl;
 
     while (frames_remaining > 0 && m_is_playing) {
         UINT32 padding = 0;
         hr = pAudioClient->GetCurrentPadding(&padding);
-        //std::cout << "Remaining Padding " << padding << std::endl;
         if (FAILED(hr)) {
             std::cout << audioClientErrorName(hr) << std::endl;
             std::exit(EXIT_FAILURE);
@@ -192,7 +184,6 @@ void AudioPlayer::play_audio() {
 
         if (available_buffer_count > frames_remaining) {
             available_buffer_count = frames_remaining;
-            //std::cout << "I am changing the buffer size : " << frames_remaining << std::endl;
         }
 
         BYTE* pAudioData = nullptr;
@@ -203,17 +194,10 @@ void AudioPlayer::play_audio() {
         }
 
         UINT32 bytesToWrite = available_buffer_count * formatToUse->nBlockAlign;
-        //std::cout << "Total bytes processed : " << total_byte_written << std::endl;
 
         // Preferred – work entirely in bytes
         const auto src = static_cast<const BYTE *>(buffer_to_feed);
         std::memcpy(pAudioData, src + total_byte_written, bytesToWrite);
-        // printf("Audio data batch: ");
-        //  for (size_t j = 0; j < 32; j++) {
-        //      printf("%02X ", pAudioData[j]);
-        //  }
-        //  printf("\n");
-        //wave.erase_audio(bytesToWrite,true);
 
         hr = pRenderClient->ReleaseBuffer(available_buffer_count, 0);
         if (FAILED(hr)) {
@@ -225,23 +209,12 @@ void AudioPlayer::play_audio() {
         frames_remaining -= available_buffer_count;
         hr = pAudioClock->GetPosition(&pu64Position, &pu64QPCPosition);
         hr = pAudioClock->GetFrequency(&pu64Frequency);
-
-        const UINT64 seconds = pu64Position / pu64Frequency;
-        //AudioPlayer::set_volume(static_cast<int>(seconds));
-
-        //std::println("After pu64Position : {}\n", 123);
-        //   std::cout << "After pu64Position : " << seconds << std::endl;
-        // std::cout << "After pu64Position : " << seconds << std::endl;
-        // std::cout << "After pu64Position : " << pu64QPCPosition << std::endl;
-        // std::cout << "Total bytes processed reduced : " << (total_audio_frames - frames_remaining) <<
-        //         "  bytes to write : " << frames_remaining << std::endl;
+        m_position_seconds = pu64Position / pu64Frequency;
     }
-
-    //std::cout << "Started Playing :" << std::endl;
 }
 
 int AudioPlayer::duration_seconds() const {
-    return static_cast<int>(total_audio_frames / formatToUse->nSamplesPerSec) / 60;
+    return static_cast<int>(total_audio_frames / formatToUse->nSamplesPerSec);
 }
 
 void AudioPlayer::stop_worker_thread() {
@@ -250,4 +223,8 @@ void AudioPlayer::stop_worker_thread() {
         std::println("I am closing the worker thread");
         m_worker.join();
     }
+}
+
+int AudioPlayer::current_second() const {
+    return static_cast<int>(m_position_seconds);
 }

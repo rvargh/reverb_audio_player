@@ -5,6 +5,8 @@
 MainWindow::MainWindow(AudioPlayer* player) : m_audio_player(player) {}
 
 void MainWindow::load_window() {
+
+
     QMainWindow* main_window = new QMainWindow();
     main_window->setWindowTitle("Audio Player");
     main_window->resize(500, 150);
@@ -19,14 +21,20 @@ void MainWindow::load_window() {
     QLabel* artist = new QLabel("Artist : Binsy");
     QLabel* volume_label = new QLabel("Volume : ");
 
+
+    QTimer* m_progress_timer = new QTimer(main_window);
     QSlider* progress = new QSlider(Qt::Horizontal);
     progress->setRange(0, m_audio_player->duration_seconds());
     progress->setValue(0);
-    QObject::connect(progress, &QSlider::sliderReleased, [this, progress]() {
+    QObject::connect(m_progress_timer, &QTimer::timeout, [this, progress]() {
         int targetSecond = progress->value();
+        auto current_sec= m_audio_player->current_second();
+        std::println("Current second {}",current_sec);
+        progress->setValue(m_audio_player->current_second());
         // Call your audio engine's seek function
         // m_audio_player->seek_to_second(targetSecond);
     });
+    m_progress_timer->start(1000);
 
     QSlider* volume = new QSlider(Qt::Horizontal);
     volume->setRange(0, 100);

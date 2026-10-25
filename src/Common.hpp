@@ -21,6 +21,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QSlider>
+#include <QTimer>
 
 //WASAPI
 
