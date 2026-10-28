@@ -18,13 +18,13 @@ class Wave {
         uint32_t subchunk2Size = 0;
         std::vector<short> m_audio_data = {};
         std::vector<float> m_float_data = {};
+        std::vector<char> external_metadata = {};
         std::variant<std::vector<float>,std::vector<short>> multi_format_buffer;
 
     public:
         explicit Wave(std::filesystem::path path);
         char& operator[](int index);
         void wave_parser();
-        void erase_audio(uint16_t size, bool is_float);
         void convert_to_float();
 
     private:

@@ -19,6 +19,10 @@ void AudioPlayer::load(std::filesystem::path path) {
     auto size = std::filesystem::file_size(path);
 
     m_wave.emplace(std::move(path));
+
+    for (auto data : m_wave->external_metadata) {
+        std::println("External metadata captured {} : ", data);
+    }
     init_system_audio();
 }
 
@@ -38,10 +42,8 @@ void AudioPlayer::pause() {
     if (m_is_playing) {
         m_is_playing = false;
     }
+    stop_audio_client();
     stop_worker_thread();
-    pAudioClient->Stop();
-    // since audio is playing in another thread, need to kill that thread
-    std::println("Hey I am Paused and m_is_playing : {}", m_is_playing.load());
 }
 
 void AudioPlayer::previous() {
@@ -54,11 +56,6 @@ void AudioPlayer::next() {
 
 bool AudioPlayer::is_playing() const {
     return m_is_playing;
-}
-
-void AudioPlayer::set_volume(int const value) {
-    std::cout << "volume slider moved to : " << value << std::endl;
-    m_volume_level = value;
 }
 
 void AudioPlayer::init_system_audio() {
@@ -115,7 +112,6 @@ void AudioPlayer::init_system_audio() {
     }
 
     hr = pAudioClient->IsFormatSupported(AUDCLNT_SHAREMODE_SHARED, &pFormat, &ppClosestMatch);
-
     if (FAILED(hr)) {
         std::cout << audioClientErrorName(hr) << std::endl;
         std::exit(EXIT_FAILURE);
@@ -135,16 +131,19 @@ void AudioPlayer::init_system_audio() {
     }
 
     hr = pAudioClient->GetService(__uuidof(IAudioRenderClient), reinterpret_cast<void **>(&pRenderClient));
-
     if (FAILED(hr)) {
         std::cout << audioClientErrorName(hr) << std::endl;
         std::exit(EXIT_FAILURE);
     }
 
+    hr = pAudioClient->GetService(IID_ISimpleAudioVolume,reinterpret_cast<void**>(&ISimpleAudioVolume));
+    if (FAILED(hr)) {
+        std::println("Failed to initialize  ISimpleAudioVolume: {}", audioClientErrorName(hr));
+        std::exit(EXIT_FAILURE);
+    }
+
     pAudioClient->GetBufferSize(&bufferFrameCount);
-
     hr = pAudioClient->GetService(IID_IAudioClock, reinterpret_cast<void **>(&pAudioClock));
-
     // this if it's an 32-bit audio sample
     // need to convert existing 16 to 32
     if (ppClosestMatch->nBlockAlign == 8) {
@@ -211,6 +210,7 @@ void AudioPlayer::play_audio() {
         hr = pAudioClock->GetFrequency(&pu64Frequency);
         m_position_seconds = pu64Position / pu64Frequency;
     }
+    stop_audio_client();
 }
 
 int AudioPlayer::duration_seconds() const {
@@ -226,5 +226,29 @@ void AudioPlayer::stop_worker_thread() {
 }
 
 int AudioPlayer::current_second() const {
-    return static_cast<int>(m_position_seconds);
+    return static_cast<int>(total_byte_written / formatToUse->nBlockAlign / formatToUse->nSamplesPerSec);
+}
+
+void AudioPlayer::change_volume(const int value) {
+    m_volume_level = value;
+    const float level = std::clamp(value / 100.0f, 0.0f, 1.0f);
+    hr = ISimpleAudioVolume->SetMasterVolume(level,nullptr);
+}
+
+void AudioPlayer::stop_audio_client() const {
+    pAudioClient->Stop();
+}
+
+void AudioPlayer::seek_player(const int value) {
+    // change the ul seek bar as well
+    m_position_seconds = value;
+    // convert seconds to frames
+    UINT64 targetFrame = value * formatToUse->nSamplesPerSec;
+    //calculate the byte offset
+    UINT64 byteOffset = targetFrame * formatToUse->nBlockAlign;
+
+    std::println("Bytes bytesOffset : {}", byteOffset);
+    std::println("Current bytes passed : {} ", total_byte_written);
+    // update the value of total_byte_written
+    total_byte_written = byteOffset;
 }

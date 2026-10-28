@@ -23,7 +23,7 @@ class AudioPlayer {
         void pause();
 
         // void stop();
-        void set_volume(int value);
+        void change_volume(int value);
 
         // void position_changed();
         void play_audio();
@@ -31,6 +31,8 @@ class AudioPlayer {
         int current_second() const;
 
         int duration_seconds() const;
+
+        void seek_player(int value);
 
         static std::string audioClientErrorName(const HRESULT hr) {
             switch (hr) {
@@ -86,6 +88,8 @@ class AudioPlayer {
         const IID IID_IAudioClock = __uuidof(IAudioClock);
         IAudioClient* pAudioClient = nullptr;
         IAudioClock* pAudioClock = nullptr;
+        ISimpleAudioVolume* ISimpleAudioVolume = nullptr;
+        const IID IID_ISimpleAudioVolume = __uuidof(ISimpleAudioVolume);
         WAVEFORMATEX* formatToUse;
         void* buffer_to_feed;
         UINT32 bufferFrameCount = 0;
@@ -97,4 +101,7 @@ class AudioPlayer {
         std::atomic<bool> m_is_playing{false};
         UINT64 m_position_seconds{0};
         ~AudioPlayer();
+
+    private:
+        void stop_audio_client() const;
 };

@@ -12,6 +12,7 @@
 #include <optional>
 #include <atomic>
 #include <print>
+#include <algorithm>
 
 // QT libs
 #include <QMainWindow>
