@@ -4,11 +4,13 @@
 #include <mmdeviceapi.h>
 #include <functiondiscoverykeys_devpkey.h>
 #include <audioclient.h>
+
+#include "Playlist.hpp"
 #include "Wave.hpp"
 
 class AudioPlayer {
     public:
-        void load(std::filesystem::path path);
+        explicit AudioPlayer(const PlayList& play_list);
 
         void init_system_audio();
 
@@ -17,6 +19,8 @@ class AudioPlayer {
         void next();
 
         void previous();
+
+        void load_audio_from_playlist();
 
         bool is_playing() const;
 
@@ -69,19 +73,18 @@ class AudioPlayer {
 
     private:
         int m_volume_level = 0;
+        const PlayList& m_play_list;
 
     public:
-        HRESULT hr;
+        HRESULT hr {};
         REFERENCE_TIME hnsRequestedDuration = REFTIMES_PER_SEC;
-        REFERENCE_TIME hnsActualDuration;
+        REFERENCE_TIME hnsActualDuration = 0;
         IMMDeviceEnumerator* pEnumerator = nullptr;
         IMMDevice* pDefaultDevice = nullptr;
-        UINT pcDevices;
+        UINT pcDevices = 0;
         IPropertyStore* ppProperties = nullptr;
-        PROPVARIANT varName;
+        PROPVARIANT varName {};
         WAVEFORMATEX pFormat{};
-        WAVEFORMATEX* pFormat1 = {};
-        WAVEFORMATEX* ppClosestMatch = nullptr;
         IAudioRenderClient* pRenderClient = nullptr;
         const CLSID CLSID_MMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
         const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);
@@ -90,8 +93,8 @@ class AudioPlayer {
         IAudioClock* pAudioClock = nullptr;
         ISimpleAudioVolume* ISimpleAudioVolume = nullptr;
         const IID IID_ISimpleAudioVolume = __uuidof(ISimpleAudioVolume);
-        WAVEFORMATEX* formatToUse;
-        void* buffer_to_feed;
+        WAVEFORMATEX* formatToUse = {};
+        void* buffer_to_feed = nullptr;
         UINT32 bufferFrameCount = 0;
         size_t total_audio_frames = 0;
         size_t total_byte_written = 0;

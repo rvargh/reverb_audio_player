@@ -12,8 +12,13 @@ link_libraries(stdc++exp)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_PREFIX_PATH "C:/Qt/6.11.2/mingw_64/" ${CMAKE_PREFIX_PATH})
+set(CMAKE_PREFIX_PATH
+        "C:/Qt/6.11.2/mingw_64/"
+        "C:/Users/royva/cpp_external/taglib"
+        ${CMAKE_PREFIX_PATH}
+)
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(taglib REQUIRED)
 
 # Use a clean variable name for your executable target
 set(PROJECT_TARGET reverb_audio_player)
@@ -27,7 +32,14 @@ add_executable(${PROJECT_TARGET}
         src/AudioPlayer.cpp
         src/Wave.hpp
         src/Wave.cpp
+        src/Playlist.hpp
+        src/Playlist.cpp
 )
 
 # Link Qt6 specifically to your new project target variable
-target_link_libraries(${PROJECT_TARGET} PRIVATE Qt6::Widgets)
+target_link_libraries(
+        ${PROJECT_TARGET}
+        PRIVATE
+            Qt6::Widgets
+            TagLib::tag
+)

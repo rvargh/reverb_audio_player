@@ -24,6 +24,10 @@
 #include <QSlider>
 #include <QTimer>
 
+// taglib
+#include <taglib/fileref.h>
+#include <taglib/tag.h>
+
 //WASAPI
 
 // MACROS
@@ -32,4 +36,11 @@
 
 struct WaveStruct{
     char riff_struct[5];
+};
+
+struct Track {
+    std::filesystem::path file_path;
+    std::string title;
+    std::string artist;
+    std::string album;
 };

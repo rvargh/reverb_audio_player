@@ -18,7 +18,6 @@ class Wave {
         uint32_t subchunk2Size = 0;
         std::vector<short> m_audio_data = {};
         std::vector<float> m_float_data = {};
-        std::vector<char> external_metadata = {};
         std::variant<std::vector<float>,std::vector<short>> multi_format_buffer;
 
     public:

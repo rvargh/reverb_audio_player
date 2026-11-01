@@ -13,7 +13,7 @@ QString MainWindow::format_time(int total_seconds) {
 
 void MainWindow::load_window() {
     QMainWindow* main_window = this;
-    main_window->setWindowTitle("Audio Player");
+    main_window->setWindowTitle("Binsy");
     main_window->resize(400, 130);   // smaller window
 
     main_window->setStyleSheet(R"(
