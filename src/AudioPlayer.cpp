@@ -13,6 +13,7 @@ AudioPlayer::~AudioPlayer() {
 AudioPlayer::AudioPlayer(const PlayList &play_list) : m_play_list(play_list) {
     init_system_audio();
     if (m_play_list.total_tracks() > 0) {
+        m_current_index = 0;
         load_audio_from_playlist();
     }
 }
@@ -249,4 +250,16 @@ void AudioPlayer::load_audio_from_playlist() {
     }
     frames_remaining = total_audio_frames;
     hnsActualDuration = (double) (REFTIMES_PER_SEC) * bufferFrameCount / pFormat.nSamplesPerSec;
+}
+
+const Track& AudioPlayer::get_current_track_info() const {
+    return m_play_list.get_track(0);
+}
+
+int AudioPlayer::total_track() const {
+    return m_play_list.total_tracks();
+}
+
+int AudioPlayer::current_playlist_index() const {
+    return m_current_index;
 }

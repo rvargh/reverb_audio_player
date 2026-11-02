@@ -23,6 +23,7 @@
 #include <QPushButton>
 #include <QSlider>
 #include <QTimer>
+#include <QFileInfo>
 
 // taglib
 #include <taglib/fileref.h>

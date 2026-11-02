@@ -38,6 +38,12 @@ class AudioPlayer {
 
         void seek_player(int value);
 
+        const Track& get_current_track_info() const;
+
+        int total_track() const;
+
+        int current_playlist_index() const;
+
         static std::string audioClientErrorName(const HRESULT hr) {
             switch (hr) {
                 case AUDCLNT_E_NOT_INITIALIZED: return "AUDCLNT_E_NOT_INITIALIZED";
@@ -74,6 +80,7 @@ class AudioPlayer {
     private:
         int m_volume_level = 0;
         const PlayList& m_play_list;
+        int m_current_index = -1;
 
     public:
         HRESULT hr {};

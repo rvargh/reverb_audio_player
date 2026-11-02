@@ -4,6 +4,31 @@
 MainWindow::MainWindow(AudioPlayer* player) : m_audio_player(player) {
 }
 
+void MainWindow::update_now_playing() {
+
+    if (m_audio_player->total_track() == 0) {
+        m_title_label->setText("Song Title");
+        m_artist_label->setText("Artist");
+        m_last_index = -1;
+        return;
+    }
+
+    auto [path, title, artist, album] = m_audio_player->get_current_track_info();
+
+    const QString displayTitle = title.empty()
+        ? QFileInfo(QString::fromStdString(path.string())).completeBaseName()
+        : QString::fromStdString(title);
+
+    const QString displayArtist = artist.empty()
+        ? QStringLiteral("Unknown artist")
+        : QString::fromStdString(artist);
+
+    m_title_label->setText("Song Title : " + displayTitle);
+    m_artist_label->setText("Artist : " + displayArtist);
+
+    m_last_index = m_audio_player->current_playlist_index();
+}
+
 QString MainWindow::format_time(int total_seconds) {
     int minutes = total_seconds / 60;
     int seconds = total_seconds % 60;
@@ -99,14 +124,14 @@ void MainWindow::load_window() {
     info_layout->setSpacing(0);
     info_layout->setContentsMargins(0, 1, 0, 0);
 
-    QLabel* title = new QLabel("Song Title");
-    title->setObjectName("titleLabel");
+    m_title_label = new QLabel("Song Title : ");
+    m_title_label->setObjectName("titleLabel");
 
-    QLabel* artist = new QLabel("Artist : Binsy");
-    artist->setObjectName("artistLabel");
+    m_artist_label = new QLabel("Artist : Binsy");
+    m_artist_label->setObjectName("artistLabel");
 
-    info_layout->addWidget(title);
-    info_layout->addWidget(artist);
+    info_layout->addWidget(m_title_label);
+    info_layout->addWidget(m_artist_label);
     info_layout->addStretch();
 
     top_layout->addWidget(album_art);
@@ -140,6 +165,10 @@ void MainWindow::load_window() {
 
             int remaining = std::max(0, m_audio_player->duration_seconds() - current_sec);
             remaining_time->setText("-" + format_time(remaining));
+
+            if (m_audio_player->current_playlist_index() != m_last_index) {
+                update_now_playing();
+            }
         });
     progress_timer->start(1000);
 
@@ -189,7 +218,7 @@ void MainWindow::load_window() {
     controls_layout->addWidget(previous);
     controls_layout->addWidget(play);
     controls_layout->addWidget(next);
-    controls_layout->addSpacing(10);                // small gap before volume
+    controls_layout->addSpacing(10);
     controls_layout->addWidget(volume);
     controls_layout->addStretch();
 
