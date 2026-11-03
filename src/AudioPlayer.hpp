@@ -1,8 +1,6 @@
 #pragma once
 
 #include "Common.hpp"
-#include <mmdeviceapi.h>
-#include <functiondiscoverykeys_devpkey.h>
 #include <audioclient.h>
 
 #include "Playlist.hpp"
@@ -92,6 +90,7 @@ class AudioPlayer {
         IPropertyStore* ppProperties = nullptr;
         PROPVARIANT varName {};
         WAVEFORMATEX pFormat{};
+        WAVEFORMATEX* pFormat1 = nullptr;
         IAudioRenderClient* pRenderClient = nullptr;
         const CLSID CLSID_MMDeviceEnumerator = __uuidof(MMDeviceEnumerator);
         const IID IID_IMMDeviceEnumerator = __uuidof(IMMDeviceEnumerator);

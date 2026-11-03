@@ -13,6 +13,9 @@
 #include <atomic>
 #include <print>
 #include <algorithm>
+#include <mmdeviceapi.h>
+#include <functiondiscoverykeys_devpkey.h>
+#include <mmreg.h>
 
 // QT libs
 #include <QMainWindow>

@@ -167,6 +167,7 @@ void MainWindow::load_window() {
             remaining_time->setText("-" + format_time(remaining));
 
             if (m_audio_player->current_playlist_index() != m_last_index) {
+                progress->setValue(0);
                 update_now_playing();
             }
         });

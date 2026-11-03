@@ -16,9 +16,15 @@ class Wave {
         uint16_t bitsPerSample = 0;
         char subchunk2ID[5] = {0};
         uint32_t subchunk2Size = 0;
+        uint16_t cbSize;
+        uint16_t validBitsPerSample;
+        uint32_t channelMask;
+        uint8_t  subFormat[16];
         std::vector<short> m_audio_data = {};
         std::vector<float> m_float_data = {};
+        std::vector<int32_t> m_32_int_data = {};
         std::variant<std::vector<float>,std::vector<short>> multi_format_buffer;
+        GUID sub_format{};
 
     public:
         explicit Wave(std::filesystem::path path);

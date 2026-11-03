@@ -9,18 +9,24 @@ int main(int argc, char* argv[]) {
         QApplication app(argc, argv);
         PlayList playlist;
 
-        if (argc <= 1 || argv[1] != nullptr) {
-            if (TagLib::FileRef file_ref(argv[1]); !file_ref.isNull() && file_ref.tag()) {
-                Track track = {};
-                const TagLib::Tag* tag = file_ref.tag();
-                track.title = tag->title().toCString();
-                track.album = tag->album().toCString();
-                track.artist = tag->artist().toCString();
-                track.file_path = argv[1];
+        for (int i = 1; i < argc; ++i) {
+            // start from 1 (skip program name)
+            if (argv[i] == nullptr) continue;
+
+            std::filesystem::path p = argv[i];
+            if (p.empty()) continue;
+
+            TagLib::FileRef f(argv[i]);
+            if (!f.isNull() && f.tag()) {
+                Track track{};
+                const TagLib::Tag* tag = f.tag();
+                track.title = tag->title().toCString(true); // true = UTF-8
+                track.album = tag->album().toCString(true);
+                track.artist = tag->artist().toCString(true);
+                track.file_path = argv[i];
                 playlist.add_tracks(std::move(track));
             }
         }
-
         //const std::string path = argv[1];
         AudioPlayer player{playlist};
         //player.load();

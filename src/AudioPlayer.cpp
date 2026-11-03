@@ -19,7 +19,6 @@ AudioPlayer::AudioPlayer(const PlayList &play_list) : m_play_list(play_list) {
 }
 
 void AudioPlayer::play() {
-
     if (frames_remaining == 0) {
         load_audio_from_playlist();
     }
@@ -43,10 +42,37 @@ void AudioPlayer::pause() {
 }
 
 void AudioPlayer::previous() {
+
+    m_is_playing = false;
+    if (m_worker.joinable()) {
+        m_worker.join();
+    }
+    hr = pAudioClient->Stop();
+    if (SUCCEEDED(hr)) {
+        hr = pAudioClient->Reset();
+    }
+    total_byte_written = 0;
+    frames_remaining = 0;
+    m_current_index--;
+    load_audio_from_playlist();
     std::cout << "Hey I am from Audio Player clicked previous." << std::endl;
 }
 
 void AudioPlayer::next() {
+    m_is_playing = false;
+    if (m_worker.joinable()) {
+        m_worker.join();
+    }
+    hr = pAudioClient->Stop();
+    if (SUCCEEDED(hr)) {
+        hr = pAudioClient->Reset();
+    }
+    total_byte_written = 0;
+    frames_remaining = 0;
+    m_current_index++;
+    load_audio_from_playlist();
+    AudioPlayer::play();
+
     std::cout << "Hey I am from Audio Player clicked next." << std::endl;
 }
 
@@ -82,7 +108,6 @@ void AudioPlayer::init_system_audio() {
     PropVariantClear(&varName);
     ppProperties->Release();
 
-    //hr = pAudioClient->GetMixFormat(&pFormat1);
 
     // hr = pAudioClient->IsFormatSupported(AUDCLNT_SHAREMODE_SHARED, pFormat1, &ppClosestMatch);
     // if (FAILED(hr)) {
@@ -93,15 +118,44 @@ void AudioPlayer::init_system_audio() {
     // formatToUse = (hr == S_FALSE && ppClosestMatch != nullptr)
     //                   ? ppClosestMatch
     //                   : &pFormat;
+
+
+    hr = pDefaultDevice->Activate(__uuidof(IAudioClient),CLSCTX_ALL, nullptr, reinterpret_cast<void **>(&pAudioClient));
+    if (FAILED(hr)) {
+        std::println("Failed to Activate Audio Client : {}", audioClientErrorName(hr));
+        std::exit(EXIT_FAILURE);
+    }
+    pDefaultDevice->Release();
+
+    hr = pAudioClient->GetMixFormat(&pFormat1);
+
+    hr = pAudioClient->Initialize(
+        AUDCLNT_SHAREMODE_SHARED,
+        0,
+        hnsRequestedDuration, 0, pFormat1, nullptr
+    );
+    if (FAILED(hr)) {
+        std::println("Failed to initialize Audio Client : {}", audioClientErrorName(hr));
+        std::exit(EXIT_FAILURE);
+    }
+
+    hr = pAudioClient->GetService(__uuidof(IAudioRenderClient), reinterpret_cast<void **>(&pRenderClient));
+    if (FAILED(hr)) {
+        std::println("Failed to initialize  IAudioRenderClient : {}", audioClientErrorName(hr));
+        std::exit(EXIT_FAILURE);
+    }
+
+    hr = pAudioClient->GetService(IID_ISimpleAudioVolume, reinterpret_cast<void **>(&ISimpleAudioVolume));
+    if (FAILED(hr)) {
+        std::println("Failed to initialize  ISimpleAudioVolume: {}", audioClientErrorName(hr));
+        std::exit(EXIT_FAILURE);
+    }
 }
 
 
 void AudioPlayer::play_audio() {
-    UINT64 pu64Position = 0;
-    UINT64 pu64QPCPosition = 0;
-    UINT64 pu64Frequency = 0;
 
-    hr = pAudioClock->GetPosition(&pu64Position, &pu64QPCPosition);
+    pAudioClient->GetBufferSize(&bufferFrameCount);
 
     while (frames_remaining > 0 && m_is_playing) {
         UINT32 padding = 0;
@@ -122,7 +176,7 @@ void AudioPlayer::play_audio() {
             std::cout << audioClientErrorName(hr) << std::endl;
             std::exit(EXIT_FAILURE);
         }
-        UINT32 bytesToWrite = available_buffer_count * pFormat.nBlockAlign;
+        UINT32 bytesToWrite = available_buffer_count * pFormat1->nBlockAlign;
 
         // Preferred – work entirely in bytes
         const auto src = static_cast<const BYTE *>(buffer_to_feed);
@@ -136,9 +190,6 @@ void AudioPlayer::play_audio() {
         Sleep((DWORD) (hnsActualDuration / REFTIMES_PER_MILLISEC / 4));
         total_byte_written += bytesToWrite;
         frames_remaining -= available_buffer_count;
-        hr = pAudioClock->GetPosition(&pu64Position, &pu64QPCPosition);
-        hr = pAudioClock->GetFrequency(&pu64Frequency);
-        m_position_seconds = pu64Position / pu64Frequency;
     }
 
     if (frames_remaining > 0) {
@@ -148,7 +199,7 @@ void AudioPlayer::play_audio() {
 }
 
 int AudioPlayer::duration_seconds() const {
-    return static_cast<int>(total_audio_frames / pFormat.nSamplesPerSec);
+    return static_cast<int>(total_audio_frames / pFormat1->nSamplesPerSec);
 }
 
 void AudioPlayer::stop_worker_thread() {
@@ -160,7 +211,7 @@ void AudioPlayer::stop_worker_thread() {
 }
 
 int AudioPlayer::current_second() const {
-    return static_cast<int>(total_byte_written / pFormat.nBlockAlign / pFormat.nSamplesPerSec);
+    return static_cast<int>(total_byte_written / pFormat1->nBlockAlign / pFormat1->nSamplesPerSec);
 }
 
 void AudioPlayer::change_volume(const int value) {
@@ -177,9 +228,9 @@ void AudioPlayer::seek_player(const int value) {
     // change the ul seek bar as well
     m_position_seconds = value;
     // convert seconds to frames
-    UINT64 targetFrame = value * pFormat.nSamplesPerSec;
+    UINT64 targetFrame = value * pFormat1->nSamplesPerSec;
     //calculate the byte offset
-    UINT64 byteOffset = targetFrame * pFormat.nBlockAlign;
+    UINT64 byteOffset = targetFrame * pFormat1->nBlockAlign;
 
     std::println("Bytes bytesOffset : {}", byteOffset);
     std::println("Current bytes passed : {} ", total_byte_written);
@@ -188,72 +239,38 @@ void AudioPlayer::seek_player(const int value) {
 }
 
 void AudioPlayer::load_audio_from_playlist() {
-
-    const Track &current_track = m_play_list.get_track(0);
+    const Track& current_track = m_play_list.get_track(m_current_index);
     m_wave.emplace(current_track.file_path);
 
-    if (m_wave.has_value()) {
-        pFormat.wFormatTag = m_wave->audioFormat;
-        pFormat.nChannels = m_wave->numChannels;
-        pFormat.nSamplesPerSec = m_wave->sampleRate;
-        pFormat.nAvgBytesPerSec = m_wave->byteRate;
-        pFormat.nBlockAlign = m_wave->blockAlign;
-        pFormat.wBitsPerSample = m_wave->bitsPerSample;
-        pFormat.cbSize = 0;
-    }
-
-    hr = pDefaultDevice->Activate(__uuidof(IAudioClient),CLSCTX_ALL, nullptr, reinterpret_cast<void **>(&pAudioClient));
-    if (FAILED(hr)) {
-        std::println("Failed to Activate Audio Client : {}", audioClientErrorName(hr));
-        std::exit(EXIT_FAILURE);
-    }
-    pDefaultDevice->Release();
-
-    hr = pAudioClient->Initialize(
-        AUDCLNT_SHAREMODE_SHARED,
-        AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY,
-        hnsRequestedDuration, 0, &pFormat, nullptr
-    );
-    if (FAILED(hr)) {
-        std::println("Failed to initialize Audio Client : {}", audioClientErrorName(hr));
-        std::exit(EXIT_FAILURE);
-    }
-
-    hr = pAudioClient->GetService(__uuidof(IAudioRenderClient), reinterpret_cast<void **>(&pRenderClient));
-    if (FAILED(hr)) {
-        std::println("Failed to initialize  IAudioRenderClient : {}", audioClientErrorName(hr));
-        std::exit(EXIT_FAILURE);
-    }
-
-    hr = pAudioClient->GetService(IID_ISimpleAudioVolume, reinterpret_cast<void **>(&ISimpleAudioVolume));
-    if (FAILED(hr)) {
-        std::println("Failed to initialize  ISimpleAudioVolume: {}", audioClientErrorName(hr));
-        std::exit(EXIT_FAILURE);
-    }
-
-    pAudioClient->GetBufferSize(&bufferFrameCount);
-    hr = pAudioClient->GetService(IID_IAudioClock, reinterpret_cast<void **>(&pAudioClock));
-
-
+    // if (m_wave.has_value()) {
+    //     pFormat1->wFormatTag = m_wave->audioFormat;
+    //     pFormat1->nChannels = m_wave->numChannels;
+    //     pFormat1->nSamplesPerSec = m_wave->sampleRate;
+    //     pFormat1->nAvgBytesPerSec = m_wave->byteRate;
+    //     pFormat1->nBlockAlign = m_wave->blockAlign;
+    //     pFormat1->wBitsPerSample = m_wave->bitsPerSample;
+    //     pFormat1->cbSize = 0;
+    //     pFormat1->cbSize = 0;
+    // }
     // this if it's an 32-bit audio sample
     // need to convert existing 16 to 32
-    if (pFormat.nBlockAlign == 8) {
+    if (pFormat1->nBlockAlign == 8) {
         m_wave->convert_to_float();
         buffer_to_feed = m_wave->m_float_data.data();
         // A float array size divided by channels/sample size depends on format,
         // but assuming m_wave.m_float_data.size() is total samples:
         // frames = total_samples / num_channels
-        total_audio_frames = (m_wave->m_float_data.size() * sizeof(float)) / pFormat.nBlockAlign;
+        total_audio_frames = (m_wave->m_float_data.size() * sizeof(float)) / pFormat1->nBlockAlign;
     } else {
         buffer_to_feed = m_wave->m_audio_data.data();
-        total_audio_frames = (m_wave->m_audio_data.size() * sizeof(short)) / pFormat.nBlockAlign;
+        total_audio_frames = (m_wave->m_audio_data.size() * sizeof(short)) / pFormat1->nBlockAlign;
     }
     frames_remaining = total_audio_frames;
-    hnsActualDuration = (double) (REFTIMES_PER_SEC) * bufferFrameCount / pFormat.nSamplesPerSec;
+    hnsActualDuration = (double) (REFTIMES_PER_SEC) * bufferFrameCount / pFormat1->nSamplesPerSec;
 }
 
-const Track& AudioPlayer::get_current_track_info() const {
-    return m_play_list.get_track(0);
+const Track &AudioPlayer::get_current_track_info() const {
+    return m_play_list.get_track(m_current_index);
 }
 
 int AudioPlayer::total_track() const {
